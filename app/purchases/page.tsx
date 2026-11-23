@@ -17,6 +17,8 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -35,6 +37,9 @@ export default function PurchasesPage() {
     totalPurchasesAmount,
     pendingPurchasesCount,
   } = useInventory();
+
+  // Active view: Orders vs Suppliers
+  const [activeTab, setActiveTab] = useState<"orders" | "suppliers">("orders");
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,9 +68,26 @@ export default function PurchasesPage() {
     },
   ]);
 
-  // Unique suppliers count
-  const uniqueSuppliersCount = useMemo(() => {
-    return new Set(purchaseOrders.map((po) => po.supplier)).size;
+  // Unique suppliers directory list
+  const uniqueSuppliers = useMemo(() => {
+    const map: Record<string, { name: string; email: string; ordersCount: number; totalSpend: number; lastOrder: string }> = {};
+    purchaseOrders.forEach((po) => {
+      if (!map[po.supplier]) {
+        map[po.supplier] = {
+          name: po.supplier,
+          email: po.supplierEmail,
+          ordersCount: 0,
+          totalSpend: 0,
+          lastOrder: po.orderDate,
+        };
+      }
+      map[po.supplier].ordersCount += 1;
+      map[po.supplier].totalSpend += po.totalAmount;
+      if (po.orderDate > map[po.supplier].lastOrder) {
+        map[po.supplier].lastOrder = po.orderDate;
+      }
+    });
+    return Object.values(map);
   }, [purchaseOrders]);
 
   // Filtered Orders
@@ -281,17 +303,20 @@ export default function PurchasesPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card/60 backdrop-blur">
+        <Card
+          onClick={() => setActiveTab(activeTab === "suppliers" ? "orders" : "suppliers")}
+          className="border-border bg-card/60 backdrop-blur cursor-pointer hover:border-primary/50 transition-all"
+        >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Active Suppliers
               </p>
               <h3 className="text-2xl font-bold text-foreground mt-1">
-                {uniqueSuppliersCount} Vendors
+                {uniqueSuppliers.length} Vendors
               </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Verified supply chain
+              <p className="text-[11px] text-primary mt-0.5 font-medium">
+                Click to view directory →
               </p>
             </div>
             <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center text-foreground">
@@ -301,189 +326,263 @@ export default function PurchasesPage() {
         </Card>
       </div>
 
-      {/* Main Table Card */}
-      <Card className="border-border">
-        {/* Search & Filter Header */}
-        <CardHeader className="p-4 sm:p-5 border-b border-border/70">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search PO#, supplier, or item..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background/80 pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+      {/* Tabs Switcher: Orders vs Suppliers */}
+      <div className="flex items-center gap-2 border-b border-border pb-3">
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+            activeTab === "orders"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          <span>Purchase Orders ({filteredOrders.length})</span>
+        </button>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
-                Status:
-              </span>
-              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border">
-                {["ALL", "PENDING", "RECEIVED"].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-all ${
-                      statusFilter === st
-                        ? "bg-card text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {st.toLowerCase()}
-                  </button>
-                ))}
+        <button
+          onClick={() => setActiveTab("suppliers")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+            activeTab === "suppliers"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          <span>Suppliers Directory ({uniqueSuppliers.length})</span>
+        </button>
+      </div>
+
+      {/* TAB 1: PURCHASE ORDERS */}
+      {activeTab === "orders" && (
+        <Card className="border-border">
+          {/* Search & Filter Header */}
+          <CardHeader className="p-4 sm:p-5 border-b border-border/70">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search PO#, supplier, or item..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background/80 pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
+                  Status:
+                </span>
+                <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border">
+                  {["ALL", "PENDING", "RECEIVED"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setStatusFilter(st)}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-all ${
+                        statusFilter === st
+                          ? "bg-card text-foreground shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {st.toLowerCase()}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
-        {/* PO Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 text-muted-foreground border-b border-border/80">
-              <tr>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Order Ref</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Supplier</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Ordered Date</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Line Items</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Total Amount</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Status</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">Workflow Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {filteredOrders.length === 0 ? (
+          {/* PO Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/40 text-muted-foreground border-b border-border/80">
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                    No purchase orders found matching your search.
-                  </td>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Order Ref</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Supplier</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Ordered Date</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Line Items</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Total Amount</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Status</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">Workflow Action</th>
                 </tr>
-              ) : (
-                filteredOrders.map((po) => {
-                  const isExpanded = expandedPoId === po.id;
-                  const isPending = po.status === "PENDING";
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                      No purchase orders found matching your search.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((po) => {
+                    const isExpanded = expandedPoId === po.id;
+                    const isPending = po.status === "PENDING";
 
-                  return (
-                    <React.Fragment key={po.id}>
-                      <tr className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-semibold text-primary">
-                          <button
-                            onClick={() => setExpandedPoId(isExpanded ? null : po.id)}
-                            className="flex items-center gap-1.5 hover:underline"
-                          >
-                            <span>{po.orderNumber}</span>
-                            {isExpanded ? (
-                              <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                            )}
-                          </button>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="font-semibold text-foreground">{po.supplier}</div>
-                          <div className="text-[10px] text-muted-foreground">{po.supplierEmail}</div>
-                        </td>
-                        <td className="py-3.5 px-4 text-muted-foreground">
-                          {formatDate(po.orderDate)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-medium text-foreground">
-                            {po.items.length} item(s)
-                          </span>
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            ({po.items.reduce((acc, i) => acc + i.quantity, 0)} units)
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-foreground">
-                          {formatCurrency(po.totalAmount)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {po.status === "RECEIVED" && (
-                            <Badge variant="success">Received</Badge>
-                          )}
-                          {po.status === "PENDING" && (
-                            <Badge variant="warning" pulse>Pending Delivery</Badge>
-                          )}
-                          {po.status === "CANCELLED" && (
-                            <Badge variant="destructive">Cancelled</Badge>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          {isPending ? (
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() => receivePurchaseOrder(po.id)}
-                              className="h-8 px-3 text-xs font-semibold gap-1.5 shadow-sm shadow-emerald-500/20"
-                              title="Click to mark received and automatically increment stock items"
+                    return (
+                      <React.Fragment key={po.id}>
+                        <tr className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3.5 px-4 font-mono font-semibold text-primary">
+                            <button
+                              onClick={() => setExpandedPoId(isExpanded ? null : po.id)}
+                              className="flex items-center gap-1.5 hover:underline"
                             >
-                              <PackageCheck className="h-3.5 w-3.5" />
-                              Receive & Stock In
-                            </Button>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                              {po.receivedDate ? `Received ${formatDate(po.receivedDate)}` : "Stocked In"}
+                              <span>{po.orderNumber}</span>
+                              {isExpanded ? (
+                                <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-foreground">{po.supplier}</div>
+                            <div className="text-[10px] text-muted-foreground">{po.supplierEmail}</div>
+                          </td>
+                          <td className="py-3.5 px-4 text-muted-foreground">
+                            {formatDate(po.orderDate)}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-medium text-foreground">
+                              {po.items.length} item(s)
                             </span>
-                          )}
-                        </td>
-                      </tr>
+                            <span className="text-[10px] text-muted-foreground ml-1">
+                              ({po.items.reduce((acc, i) => acc + i.quantity, 0)} units)
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-foreground">
+                            {formatCurrency(po.totalAmount)}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {po.status === "RECEIVED" && (
+                              <Badge variant="success">Received</Badge>
+                            )}
+                            {po.status === "PENDING" && (
+                              <Badge variant="warning" pulse>Pending Delivery</Badge>
+                            )}
+                            {po.status === "CANCELLED" && (
+                              <Badge variant="destructive">Cancelled</Badge>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            {isPending ? (
+                              <Button
+                                variant="success"
+                                size="sm"
+                                onClick={() => receivePurchaseOrder(po.id)}
+                                className="h-8 px-3 text-xs font-semibold gap-1.5 shadow-sm shadow-emerald-500/20"
+                                title="Click to mark received and automatically increment stock items"
+                              >
+                                <PackageCheck className="h-3.5 w-3.5" />
+                                Receive & Stock In
+                              </Button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                {po.receivedDate ? `Received ${formatDate(po.receivedDate)}` : "Stocked In"}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
 
-                      {/* Expanded Itemized Breakdown */}
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <tr className="bg-muted/20">
-                            <td colSpan={7} className="p-4 pl-12 border-b border-border/70">
-                              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-foreground">
-                                    Itemized Consignment Details for {po.orderNumber}
-                                  </span>
-                                  {po.notes && (
-                                    <span className="text-[11px] text-muted-foreground italic">
-                                      Notes: {po.notes}
+                        {/* Expanded Itemized Breakdown */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <tr className="bg-muted/20">
+                              <td colSpan={7} className="p-4 pl-12 border-b border-border/70">
+                                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-foreground">
+                                      Itemized Consignment Details for {po.orderNumber}
                                     </span>
-                                  )}
-                                </div>
+                                    {po.notes && (
+                                      <span className="text-[11px] text-muted-foreground italic">
+                                        Notes: {po.notes}
+                                      </span>
+                                    )}
+                                  </div>
 
-                                <table className="w-full text-xs">
-                                  <thead className="text-muted-foreground border-b border-border/60">
-                                    <tr>
-                                      <th className="py-1.5 font-medium">Product Name</th>
-                                      <th className="py-1.5 font-medium">SKU</th>
-                                      <th className="py-1.5 font-medium text-center">Quantity</th>
-                                      <th className="py-1.5 font-medium text-right">Unit Cost</th>
-                                      <th className="py-1.5 font-medium text-right">Line Total</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border/40">
-                                    {po.items.map((item, idx) => (
-                                      <tr key={idx}>
-                                        <td className="py-2 font-medium text-foreground">{item.productName}</td>
-                                        <td className="py-2 font-mono text-[11px] text-muted-foreground">{item.sku}</td>
-                                        <td className="py-2 text-center font-bold text-foreground">{item.quantity}</td>
-                                        <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.unitPrice)}</td>
-                                        <td className="py-2 text-right font-semibold text-foreground">{formatCurrency(item.subtotal)}</td>
+                                  <table className="w-full text-xs">
+                                    <thead className="text-muted-foreground border-b border-border/60">
+                                      <tr>
+                                        <th className="py-1.5 font-medium">Product Name</th>
+                                        <th className="py-1.5 font-medium">SKU</th>
+                                        <th className="py-1.5 font-medium text-center">Quantity</th>
+                                        <th className="py-1.5 font-medium text-right">Unit Cost</th>
+                                        <th className="py-1.5 font-medium text-right">Line Total</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </AnimatePresence>
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/40">
+                                      {po.items.map((item, idx) => (
+                                        <tr key={idx}>
+                                          <td className="py-2 font-medium text-foreground">{item.productName}</td>
+                                          <td className="py-2 font-mono text-[11px] text-muted-foreground">{item.sku}</td>
+                                          <td className="py-2 text-center font-bold text-foreground">{item.quantity}</td>
+                                          <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.unitPrice)}</td>
+                                          <td className="py-2 text-right font-semibold text-foreground">{formatCurrency(item.subtotal)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </AnimatePresence>
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 2: SUPPLIERS DIRECTORY */}
+      {activeTab === "suppliers" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {uniqueSuppliers.map((supp, idx) => (
+            <Card key={idx} className="border-border p-5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                    {supp.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    Last: {formatDate(supp.lastOrder)}
+                  </span>
+                </div>
+                <h4 className="font-bold text-foreground text-sm line-clamp-1">{supp.name}</h4>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                  <Mail className="h-3 w-3 text-primary" />
+                  <span className="truncate">{supp.email}</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[10px] uppercase text-muted-foreground block">Procured</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(supp.totalSpend)}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSupplier(supp.name);
+                    setSupplierEmail(supp.email);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="h-7 text-[10px] font-semibold gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Raise PO
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
-      </Card>
+      )}
 
       {/* Modal: Create Purchase Order */}
       <Modal

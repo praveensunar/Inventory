@@ -16,6 +16,7 @@ import {
   initialStockMovements,
   initialGodowns,
 } from "@/data/initialData";
+import { triggerCelebration } from "@/lib/confetti";
 
 export interface ToastNotice {
   id: string;
@@ -44,6 +45,7 @@ interface InventoryContextType {
 
   // Actions
   receivePurchaseOrder: (orderId: string) => { success: boolean; message: string };
+  fulfillSalesOrder: (orderId: string) => { success: boolean; message: string };
   createPurchaseOrder: (po: Omit<PurchaseOrder, "id" | "orderNumber">) => PurchaseOrder;
   createSalesOrder: (so: Omit<SalesOrder, "id" | "invoiceNumber">) => { success: boolean; message: string; order?: SalesOrder };
   adjustStock: (productId: string, newQuantity: number, reason: string) => void;
@@ -51,6 +53,7 @@ interface InventoryContextType {
   addProduct: (product: Omit<Product, "id" | "status" | "updatedAt">) => Product;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
+  addGodown: (godown: Omit<Godown, "id">) => Godown;
   resetToSampleData: () => void;
 
   // Notifications
@@ -136,7 +139,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
   }, [products, purchaseOrders, salesOrders, stockMovements, godowns, isLoaded]);
 
-  // Core Connected Action 1: Receive Purchase Order
+  // Core Action: Receive Purchase Order (Increases Stock)
   const receivePurchaseOrder = (orderId: string) => {
     const orderIndex = purchaseOrders.findIndex((po) => po.id === orderId);
     if (orderIndex === -1) {
@@ -196,10 +199,12 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
+    triggerCelebration();
+
     addToast({
       type: "success",
-      title: "Purchase Order Received!",
-      message: `${order.orderNumber} received. Stock has been incremented for ${order.items.length} item(s).`,
+      title: "Consignment Received & Stocked In!",
+      message: `${order.orderNumber} received. Stock incremented for ${order.items.length} product(s).`,
     });
 
     return {
@@ -208,7 +213,78 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  // Core Connected Action 2: Create Purchase Order
+  // Core Action: Fulfill Pending Sales Order (Reduces Stock)
+  const fulfillSalesOrder = (orderId: string) => {
+    const order = salesOrders.find((so) => so.id === orderId);
+    if (!order) return { success: false, message: "Order not found" };
+    if (order.status === "COMPLETED") return { success: false, message: "Already completed" };
+
+    // Validate stock
+    for (const item of order.items) {
+      const prod = products.find((p) => p.id === item.productId);
+      if (!prod || prod.quantity < item.quantity) {
+        addToast({
+          type: "error",
+          title: "Insufficient Stock to Fulfill",
+          message: `Cannot dispatch ${item.productName}. Only ${prod?.quantity || 0} in stock.`,
+        });
+        return { success: false, message: "Insufficient stock" };
+      }
+    }
+
+    const now = new Date().toISOString();
+    const newMovements: StockMovement[] = [];
+
+    setProducts((prev) =>
+      prev.map((prod) => {
+        const itemSold = order.items.find((item) => item.productId === prod.id);
+        if (!itemSold) return prod;
+
+        const previousQty = prod.quantity;
+        const newQty = Math.max(0, previousQty - itemSold.quantity);
+        const newStatus = computeStatus(newQty, prod.minLevel);
+
+        newMovements.push({
+          id: "mov-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+          productId: prod.id,
+          productName: prod.name,
+          sku: prod.sku,
+          type: "SALE_DEDUCTION",
+          quantity: -itemSold.quantity,
+          previousQty,
+          newQty,
+          reference: order.invoiceNumber,
+          notes: `Dispatched to ${order.customer}`,
+          timestamp: now,
+        });
+
+        return {
+          ...prod,
+          quantity: newQty,
+          status: newStatus,
+          updatedAt: now,
+        };
+      })
+    );
+
+    setStockMovements((prev) => [...newMovements, ...prev]);
+
+    setSalesOrders((prev) =>
+      prev.map((so) => (so.id === orderId ? { ...so, status: "COMPLETED" } : so))
+    );
+
+    triggerCelebration();
+
+    addToast({
+      type: "success",
+      title: "Invoice Dispatched & Fulfilled!",
+      message: `${order.invoiceNumber} completed. Stock deducted from inventory.`,
+    });
+
+    return { success: true, message: "Order fulfilled" };
+  };
+
+  // Create Purchase Order
   const createPurchaseOrder = (poData: Omit<PurchaseOrder, "id" | "orderNumber">) => {
     const id = "po-" + Date.now();
     const orderNumber = "PO-2026-" + Math.floor(1000 + Math.random() * 9000);
@@ -220,7 +296,6 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
     setPurchaseOrders((prev) => [newPO, ...prev]);
 
-    // If order is created directly with RECEIVED status, increment stock immediately
     if (newPO.status === "RECEIVED") {
       const now = new Date().toISOString();
       const newMovements: StockMovement[] = [];
@@ -257,20 +332,20 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         })
       );
       setStockMovements((prev) => [...newMovements, ...prev]);
+      triggerCelebration();
     }
 
     addToast({
       type: "success",
       title: "Purchase Order Created",
-      message: `${orderNumber} has been logged with ${newPO.items.length} item(s).`,
+      message: `${orderNumber} has been logged with ${newPO.items.length} line item(s).`,
     });
 
     return newPO;
   };
 
-  // Core Connected Action 3: Create Sales Order (Reduces Stock)
+  // Create Sales Order (Reduces Stock)
   const createSalesOrder = (soData: Omit<SalesOrder, "id" | "invoiceNumber">) => {
-    // Validate stock availability
     for (const item of soData.items) {
       const product = products.find((p) => p.id === item.productId);
       if (!product) {
@@ -305,7 +380,6 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     const now = new Date().toISOString();
     const newMovements: StockMovement[] = [];
 
-    // Deduct stock if order is COMPLETED
     if (newSO.status === "COMPLETED") {
       setProducts((prevProducts) =>
         prevProducts.map((prod) => {
@@ -340,14 +414,15 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       );
 
       setStockMovements((prev) => [...newMovements, ...prev]);
+      triggerCelebration();
     }
 
     setSalesOrders((prev) => [newSO, ...prev]);
 
     addToast({
       type: "success",
-      title: "Sale Invoice Recorded!",
-      message: `${invoiceNumber} created. Stock has been deducted for ${newSO.items.length} item(s).`,
+      title: "Invoice Billed & Recorded!",
+      message: `${invoiceNumber} created. Stock deducted for ${newSO.items.length} item(s).`,
     });
 
     return { success: true, message: `Invoice ${invoiceNumber} created`, order: newSO };
@@ -381,7 +456,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       previousQty,
       newQty: newQuantity,
       reference: "AUDIT-" + Math.floor(100 + Math.random() * 900),
-      notes: reason || "Manual inventory count audit",
+      notes: reason || "Manual inventory cycle count",
       timestamp: now,
     };
 
@@ -389,8 +464,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
     addToast({
       type: "info",
-      title: "Stock Count Adjusted",
-      message: `${product.name} quantity updated from ${previousQty} to ${newQuantity}.`,
+      title: "Stock Audit Updated",
+      message: `${product.name} quantity adjusted from ${previousQty} to ${newQuantity}.`,
     });
   };
 
@@ -427,12 +502,12 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
     addToast({
       type: "info",
-      title: "Location Transferred",
-      message: `${product.name} relocated to ${targetGodown.name}.`,
+      title: "Stock Relocated",
+      message: `${product.name} moved to ${targetGodown.name}.`,
     });
   };
 
-  // Product CRUD
+  // Add Product
   const addProduct = (prodData: Omit<Product, "id" | "status" | "updatedAt">) => {
     const id = "prod-" + Date.now();
     const now = new Date().toISOString();
@@ -448,7 +523,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
     addToast({
       type: "success",
-      title: "Product Added",
+      title: "New SKU Added",
       message: `${newProduct.name} is now tracked in inventory.`,
     });
 
@@ -469,8 +544,8 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     );
     addToast({
       type: "info",
-      title: "Item Updated",
-      message: "Product details saved successfully.",
+      title: "Product Updated",
+      message: "Details saved successfully.",
     });
   };
 
@@ -479,9 +554,21 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     setProducts((prev) => prev.filter((p) => p.id !== id));
     addToast({
       type: "warning",
-      title: "Product Removed",
-      message: prod ? `${prod.name} deleted from inventory.` : "Product removed.",
+      title: "Product Deleted",
+      message: prod ? `${prod.name} removed from inventory.` : "Item removed.",
     });
+  };
+
+  const addGodown = (godownData: Omit<Godown, "id">) => {
+    const id = "g-" + Date.now();
+    const newGodown: Godown = { ...godownData, id };
+    setGodowns((prev) => [...prev, newGodown]);
+    addToast({
+      type: "success",
+      title: "Warehouse Facility Added",
+      message: `${newGodown.name} is now active.`,
+    });
+    return newGodown;
   };
 
   // Reset to initial mock dataset
@@ -503,7 +590,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     addToast({
       type: "info",
       title: "Sample Data Restored",
-      message: "Inventory reset to baseline demonstration state.",
+      message: "Inventory reset to baseline trial scenario.",
     });
   };
 
@@ -542,6 +629,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         pendingPurchasesCount,
         completedSalesCount,
         receivePurchaseOrder,
+        fulfillSalesOrder,
         createPurchaseOrder,
         createSalesOrder,
         adjustStock,
@@ -549,6 +637,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         addProduct,
         updateProduct,
         deleteProduct,
+        addGodown,
         resetToSampleData,
         toasts,
         removeToast,
