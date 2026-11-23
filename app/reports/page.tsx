@@ -395,9 +395,42 @@ export default function ReportsPage() {
             </Card>
           </div>
 
+          {/* Top Selling Chart */}
           <Card className="border-border">
             <CardHeader className="p-4 sm:p-5 border-b border-border/70">
-              <CardTitle className="text-base font-bold">Top Selling Products by Revenue</CardTitle>
+              <CardTitle className="text-base font-bold">Top Products by Revenue</CardTitle>
+              <CardDescription className="text-xs">
+                Volume and sales revenue generated across customer invoices.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topSellingProducts}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.15} />
+                  <XAxis type="number" fontSize={10} tickFormatter={(val) => `₹${val / 1000}k`} />
+                  <YAxis type="category" dataKey="name" fontSize={11} width={120} tickFormatter={(name) => name.slice(0, 15) + "..."} />
+                  <Tooltip
+                    formatter={(val: any) => [formatCurrency(Number(val)), "Revenue"]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      borderColor: "hsl(var(--border))",
+                      borderRadius: "0.75rem",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border">
+            <CardHeader className="p-4 sm:p-5 border-b border-border/70">
+              <CardTitle className="text-base font-bold">Itemized Sales Ledger</CardTitle>
               <CardDescription className="text-xs">
                 Items driving highest customer turnover and fulfillment demand.
               </CardDescription>

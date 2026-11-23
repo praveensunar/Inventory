@@ -17,6 +17,8 @@ import {
   Warehouse,
   Boxes,
   FileSpreadsheet,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -37,6 +39,8 @@ function StockContent() {
     adjustStock,
     transferGodown,
     addProduct,
+    updateProduct,
+    deleteProduct,
     lowStockCount,
     outOfStockCount,
     totalStockValue,
@@ -58,6 +62,8 @@ function StockContent() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [adjustItem, setAdjustItem] = useState<Product | null>(null);
   const [transferItem, setTransferItem] = useState<Product | null>(null);
+  const [editItem, setEditItem] = useState<Product | null>(null);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<Product | null>(null);
 
   // Add Item Form State
   const [newName, setNewName] = useState("");
@@ -124,6 +130,21 @@ function StockContent() {
     setIsAddModalOpen(false);
     setNewName("");
     setNewSku("");
+  };
+
+  // Handle Edit Item
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem) return;
+    updateProduct(editItem.id, {
+      name: editItem.name,
+      category: editItem.category,
+      minLevel: Number(editItem.minLevel),
+      costPrice: Number(editItem.costPrice),
+      sellingPrice: Number(editItem.sellingPrice),
+      location: editItem.location,
+    });
+    setEditItem(null);
   };
 
   // Handle Adjust Stock
@@ -485,23 +506,30 @@ function StockContent() {
                                 setAdjustReason("");
                               }}
                               className="h-7 px-2 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                              title="Audit physical count"
                             >
                               <SlidersHorizontal className="h-3 w-3 mr-1" />
-                              Adjust
+                              Count
                             </Button>
 
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                setTransferItem(p);
-                                setTransferTargetGodownId(p.godownId);
-                                setTransferNotes(p.location);
-                              }}
+                              onClick={() => setEditItem({ ...p })}
                               className="h-7 px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                              title="Edit item details"
                             >
-                              <Warehouse className="h-3 w-3 mr-1" />
-                              Relocate
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeleteConfirmItem(p)}
+                              className="h-7 px-2 text-[11px] font-semibold text-muted-foreground hover:text-red-500"
+                              title="Delete SKU"
+                            >
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </td>
@@ -751,6 +779,111 @@ function StockContent() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Edit Existing Item */}
+      <Modal
+        isOpen={!!editItem}
+        onClose={() => setEditItem(null)}
+        title={`Edit Item: ${editItem?.name}`}
+        description="Modify SKU classification, pricing, or minimum threshold."
+      >
+        {editItem && (
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">Item Name</label>
+              <Input
+                value={editItem.name}
+                onChange={(e) => setEditItem({ ...editItem, name: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Category</label>
+                <Input
+                  value={editItem.category}
+                  onChange={(e) => setEditItem({ ...editItem, category: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Min Safety Level</label>
+                <Input
+                  type="number"
+                  value={editItem.minLevel}
+                  onChange={(e) => setEditItem({ ...editItem, minLevel: parseInt(e.target.value) || 1 })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Cost Price (₹)</label>
+                <Input
+                  type="number"
+                  value={editItem.costPrice}
+                  onChange={(e) => setEditItem({ ...editItem, costPrice: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">Selling Price (₹)</label>
+                <Input
+                  type="number"
+                  value={editItem.sellingPrice}
+                  onChange={(e) => setEditItem({ ...editItem, sellingPrice: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">Location Details</label>
+              <Input
+                value={editItem.location}
+                onChange={(e) => setEditItem({ ...editItem, location: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditItem(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm">
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal: Delete Item Confirmation */}
+      <Modal
+        isOpen={!!deleteConfirmItem}
+        onClose={() => setDeleteConfirmItem(null)}
+        title="Confirm Item Deletion"
+        description="Are you sure you want to remove this SKU from active inventory?"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            You are about to delete <strong className="text-foreground">{deleteConfirmItem?.name}</strong> ({deleteConfirmItem?.sku}). This cannot be undone.
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmItem(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (deleteConfirmItem) {
+                  deleteProduct(deleteConfirmItem.id);
+                  setDeleteConfirmItem(null);
+                }
+              }}
+            >
+              Delete Item
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Modal: Adjust Stock */}

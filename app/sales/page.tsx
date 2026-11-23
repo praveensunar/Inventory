@@ -17,6 +17,8 @@ import {
   ChevronUp,
   AlertCircle,
   Building,
+  Mail,
+  PackageCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -31,9 +33,13 @@ export default function SalesPage() {
     salesOrders,
     products,
     createSalesOrder,
+    fulfillSalesOrder,
     totalSalesAmount,
     completedSalesCount,
   } = useInventory();
+
+  // Active view: Invoices vs Customers
+  const [activeTab, setActiveTab] = useState<"invoices" | "customers">("invoices");
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,8 +71,25 @@ export default function SalesPage() {
   ]);
 
   // Derived metrics
-  const uniqueCustomersCount = useMemo(() => {
-    return new Set(salesOrders.map((so) => so.customer)).size;
+  const uniqueCustomers = useMemo(() => {
+    const map: Record<string, { name: string; email: string; ordersCount: number; totalBilled: number; lastDate: string }> = {};
+    salesOrders.forEach((so) => {
+      if (!map[so.customer]) {
+        map[so.customer] = {
+          name: so.customer,
+          email: so.customerEmail,
+          ordersCount: 0,
+          totalBilled: 0,
+          lastDate: so.date,
+        };
+      }
+      map[so.customer].ordersCount += 1;
+      map[so.customer].totalBilled += so.totalAmount;
+      if (so.date > map[so.customer].lastDate) {
+        map[so.customer].lastDate = so.date;
+      }
+    });
+    return Object.values(map);
   }, [salesOrders]);
 
   const avgOrderValue = useMemo(() => {
@@ -105,12 +128,12 @@ export default function SalesPage() {
     ]);
   };
 
-  // Remove Item from New Sale Form
+  // Remove Item
   const handleRemoveLineItem = (index: number) => {
     setOrderItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Update Item in New Sale Form
+  // Update Item
   const handleItemChange = (index: number, field: string, value: any) => {
     setOrderItems((prev) => {
       const updated = [...prev];
@@ -129,6 +152,10 @@ export default function SalesPage() {
         const qty = parseInt(value) || 1;
         item.quantity = qty;
         item.subtotal = qty * item.unitPrice;
+      } else if (field === "unitPrice") {
+        const price = parseFloat(value) || 0;
+        item.unitPrice = price;
+        item.subtotal = item.quantity * price;
       }
 
       updated[index] = item;
@@ -278,17 +305,20 @@ export default function SalesPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card/60 backdrop-blur">
+        <Card
+          onClick={() => setActiveTab(activeTab === "customers" ? "invoices" : "customers")}
+          className="border-border bg-card/60 backdrop-blur cursor-pointer hover:border-primary/50 transition-all"
+        >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                Customers Served
+                Customer Accounts
               </p>
               <h3 className="text-2xl font-bold text-foreground mt-1">
-                {uniqueCustomersCount} Accounts
+                {uniqueCustomers.length} Clients
               </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Corporate & retail buyers
+              <p className="text-[11px] text-primary mt-0.5 font-medium">
+                Click to view directory →
               </p>
             </div>
             <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center text-foreground">
@@ -312,7 +342,7 @@ export default function SalesPage() {
                 {salesOrders.filter((s) => s.status === "PENDING").length} Orders
               </h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Awaiting dispatch
+                Awaiting dispatch fulfillment
               </p>
             </div>
             <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600">
@@ -322,197 +352,288 @@ export default function SalesPage() {
         </Card>
       </div>
 
-      {/* Main Table Card */}
-      <Card className="border-border">
-        {/* Search & Filter Header */}
-        <CardHeader className="p-4 sm:p-5 border-b border-border/70">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search invoice#, customer, or item..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background/80 pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+      {/* Tabs: Invoices vs Customers */}
+      <div className="flex items-center gap-2 border-b border-border pb-3">
+        <button
+          onClick={() => setActiveTab("invoices")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+            activeTab === "invoices"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <Receipt className="h-4 w-4" />
+          <span>Sales Invoices ({filteredOrders.length})</span>
+        </button>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Payment filter */}
-              <select
-                value={paymentFilter}
-                onChange={(e) => setPaymentFilter(e.target.value)}
-                className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="ALL">All Payment Methods</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="UPI">UPI</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="Net 30">Net 30</option>
-              </select>
+        <button
+          onClick={() => setActiveTab("customers")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+            activeTab === "customers"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          <span>Customer Directory ({uniqueCustomers.length})</span>
+        </button>
+      </div>
 
-              {/* Status pill toggles */}
-              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border">
-                {["ALL", "COMPLETED", "PENDING"].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-all ${
-                      statusFilter === st
-                        ? "bg-card text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {st.toLowerCase()}
-                  </button>
-                ))}
+      {/* TAB 1: INVOICES LIST */}
+      {activeTab === "invoices" && (
+        <Card className="border-border">
+          {/* Search & Filter Header */}
+          <CardHeader className="p-4 sm:p-5 border-b border-border/70">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search invoice#, customer, or item..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background/80 pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Payment filter */}
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="ALL">All Payment Methods</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Net 30">Net 30</option>
+                </select>
+
+                {/* Status pill toggles */}
+                <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border">
+                  {["ALL", "COMPLETED", "PENDING"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setStatusFilter(st)}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-all ${
+                        statusFilter === st
+                          ? "bg-card text-foreground shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {st.toLowerCase()}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
-        {/* Sales Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 text-muted-foreground border-b border-border/80">
-              <tr>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Invoice #</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Customer</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Date</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Items Dispatched</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Payment Method</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Amount</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider">Status</th>
-                <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {filteredOrders.length === 0 ? (
+          {/* Sales Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/40 text-muted-foreground border-b border-border/80">
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
-                    No sales invoices found matching your criteria.
-                  </td>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Invoice #</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Customer</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Date</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Items Dispatched</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Payment Method</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Amount</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider">Status</th>
+                  <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">Workflow Actions</th>
                 </tr>
-              ) : (
-                filteredOrders.map((so) => {
-                  const isExpanded = expandedSoId === so.id;
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                      No sales invoices found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((so) => {
+                    const isExpanded = expandedSoId === so.id;
+                    const isPending = so.status === "PENDING";
 
-                  return (
-                    <React.Fragment key={so.id}>
-                      <tr className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-semibold text-primary">
-                          <button
-                            onClick={() => setExpandedSoId(isExpanded ? null : so.id)}
-                            className="flex items-center gap-1.5 hover:underline"
-                          >
-                            <span>{so.invoiceNumber}</span>
-                            {isExpanded ? (
-                              <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    return (
+                      <React.Fragment key={so.id}>
+                        <tr className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3.5 px-4 font-mono font-semibold text-primary">
+                            <button
+                              onClick={() => setExpandedSoId(isExpanded ? null : so.id)}
+                              className="flex items-center gap-1.5 hover:underline"
+                            >
+                              <span>{so.invoiceNumber}</span>
+                              {isExpanded ? (
+                                <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-foreground">{so.customer}</div>
+                            <div className="text-[10px] text-muted-foreground">{so.customerEmail}</div>
+                          </td>
+                          <td className="py-3.5 px-4 text-muted-foreground">
+                            {formatDate(so.date)}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-medium text-foreground">
+                              {so.items.length} item(s)
+                            </span>
+                            <span className="text-[10px] text-muted-foreground ml-1">
+                              ({so.items.reduce((acc, i) => acc + i.quantity, 0)} units)
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-block rounded-md bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                              {so.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-foreground">
+                            {formatCurrency(so.totalAmount)}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {so.status === "COMPLETED" && (
+                              <Badge variant="success">Fulfilled</Badge>
                             )}
-                          </button>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="font-semibold text-foreground">{so.customer}</div>
-                          <div className="text-[10px] text-muted-foreground">{so.customerEmail}</div>
-                        </td>
-                        <td className="py-3.5 px-4 text-muted-foreground">
-                          {formatDate(so.date)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-medium text-foreground">
-                            {so.items.length} item(s)
-                          </span>
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            ({so.items.reduce((acc, i) => acc + i.quantity, 0)} units)
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="inline-block rounded-md bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                            {so.paymentMethod}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-bold text-foreground">
-                          {formatCurrency(so.totalAmount)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {so.status === "COMPLETED" && (
-                            <Badge variant="success">Fulfilled</Badge>
-                          )}
-                          {so.status === "PENDING" && (
-                            <Badge variant="warning" pulse>Pending Dispatch</Badge>
-                          )}
-                          {so.status === "CANCELLED" && (
-                            <Badge variant="destructive">Cancelled</Badge>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setViewInvoice(so)}
-                            className="h-8 px-2.5 text-xs font-semibold gap-1 text-primary hover:bg-primary/10"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                            View Bill
-                          </Button>
-                        </td>
-                      </tr>
+                            {so.status === "PENDING" && (
+                              <Badge variant="warning" pulse>Pending Dispatch</Badge>
+                            )}
+                            {so.status === "CANCELLED" && (
+                              <Badge variant="destructive">Cancelled</Badge>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Direct Connected Action: Fulfill Order */}
+                              {isPending && (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => fulfillSalesOrder(so.id)}
+                                  className="h-7 px-2.5 text-[11px] font-semibold gap-1"
+                                  title="Dispatch order and automatically deduct item quantities from stock"
+                                >
+                                  <PackageCheck className="h-3 w-3" />
+                                  Fulfill & Deduct Stock
+                                </Button>
+                              )}
 
-                      {/* Expanded Line Items Detail */}
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <tr className="bg-muted/20">
-                            <td colSpan={8} className="p-4 pl-12 border-b border-border/70">
-                              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-foreground">
-                                    Dispatched Items Breakdown for {so.invoiceNumber}
-                                  </span>
-                                  {so.notes && (
-                                    <span className="text-[11px] text-muted-foreground italic">
-                                      Notes: {so.notes}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setViewInvoice(so)}
+                                className="h-7 px-2 text-[11px] font-semibold gap-1 text-primary hover:bg-primary/10"
+                              >
+                                <Printer className="h-3 w-3" />
+                                View
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Expanded Line Items Detail */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <tr className="bg-muted/20">
+                              <td colSpan={8} className="p-4 pl-12 border-b border-border/70">
+                                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-foreground">
+                                      Dispatched Items Breakdown for {so.invoiceNumber}
                                     </span>
-                                  )}
-                                </div>
+                                    {so.notes && (
+                                      <span className="text-[11px] text-muted-foreground italic">
+                                        Notes: {so.notes}
+                                      </span>
+                                    )}
+                                  </div>
 
-                                <table className="w-full text-xs">
-                                  <thead className="text-muted-foreground border-b border-border/60">
-                                    <tr>
-                                      <th className="py-1.5 font-medium">Product Name</th>
-                                      <th className="py-1.5 font-medium">SKU</th>
-                                      <th className="py-1.5 font-medium text-center">Quantity Deducted</th>
-                                      <th className="py-1.5 font-medium text-right">Unit Price</th>
-                                      <th className="py-1.5 font-medium text-right">Subtotal</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border/40">
-                                    {so.items.map((item, idx) => (
-                                      <tr key={idx}>
-                                        <td className="py-2 font-medium text-foreground">{item.productName}</td>
-                                        <td className="py-2 font-mono text-[11px] text-muted-foreground">{item.sku}</td>
-                                        <td className="py-2 text-center font-bold text-foreground">-{item.quantity}</td>
-                                        <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.unitPrice)}</td>
-                                        <td className="py-2 text-right font-semibold text-foreground">{formatCurrency(item.subtotal)}</td>
+                                  <table className="w-full text-xs">
+                                    <thead className="text-muted-foreground border-b border-border/60">
+                                      <tr>
+                                        <th className="py-1.5 font-medium">Product Name</th>
+                                        <th className="py-1.5 font-medium">SKU</th>
+                                        <th className="py-1.5 font-medium text-center">Quantity Deducted</th>
+                                        <th className="py-1.5 font-medium text-right">Unit Price</th>
+                                        <th className="py-1.5 font-medium text-right">Subtotal</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </AnimatePresence>
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/40">
+                                      {so.items.map((item, idx) => (
+                                        <tr key={idx}>
+                                          <td className="py-2 font-medium text-foreground">{item.productName}</td>
+                                          <td className="py-2 font-mono text-[11px] text-muted-foreground">{item.sku}</td>
+                                          <td className="py-2 text-center font-bold text-foreground">-{item.quantity}</td>
+                                          <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.unitPrice)}</td>
+                                          <td className="py-2 text-right font-semibold text-foreground">{formatCurrency(item.subtotal)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </AnimatePresence>
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 2: CUSTOMERS DIRECTORY */}
+      {activeTab === "customers" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {uniqueCustomers.map((cust, idx) => (
+            <Card key={idx} className="border-border p-5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                    {cust.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    Last: {formatDate(cust.lastDate)}
+                  </span>
+                </div>
+                <h4 className="font-bold text-foreground text-sm line-clamp-1">{cust.name}</h4>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                  <Mail className="h-3 w-3 text-primary" />
+                  <span className="truncate">{cust.email}</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[10px] uppercase text-muted-foreground block">Total Billed</span>
+                  <span className="font-bold text-primary">{formatCurrency(cust.totalBilled)}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCustomer(cust.name);
+                    setCustomerEmail(cust.email);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="h-7 text-[10px] font-semibold gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Bill
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
-      </Card>
+      )}
 
       {/* Modal: Create Sales Invoice */}
       <Modal
