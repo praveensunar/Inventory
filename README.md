@@ -2,17 +2,21 @@
 
 > Built for the **SasthaSoft** Freelance Full Stack Developer assessment.  
 > A premium, connected inventory management web application featuring real-time stock synchronization, multi-location warehouse hubs, interactive analytics, and centralized design tokens.
+> 
+> 🌐 **Live Demo (Vercel)**: [https://sasthastock.vercel.app/](https://sasthastock.vercel.app/)  
+> 💻 **GitHub Repository**: [https://github.com/praveensunar/Inventory](https://github.com/praveensunar/Inventory)
 
 ---
 
 ## 🚀 Live Demo & Quick Start
 
+- **Live Production URL**: [https://sasthastock.vercel.app/](https://sasthastock.vercel.app/)
+- **GitHub Repository**: [https://github.com/praveensunar/Inventory](https://github.com/praveensunar/Inventory)
 - **Local URL**: [http://localhost:3000](http://localhost:3000)
-- **Deployment**: Ready for 1-click deployment on [Vercel](https://vercel.com) (`npm run build`).
 
 ```bash
 # Clone the repository
-git clone <your-github-repo-url>
+git clone https://github.com/praveensunar/Inventory.git
 cd Inventory
 
 # Install dependencies
