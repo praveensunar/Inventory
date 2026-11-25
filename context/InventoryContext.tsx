@@ -71,6 +71,15 @@ function computeStatus(qty: number, minLevel: number): StockStatus {
   return "IN_STOCK";
 }
 
+function deduplicateById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (!item?.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -104,15 +113,16 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       const storedGodowns = localStorage.getItem("sastha_godowns");
 
       if (storedProducts && storedPOs && storedSOs) {
-        const parsedPOs: PurchaseOrder[] = JSON.parse(storedPOs);
+        let parsedPOs: PurchaseOrder[] = deduplicateById(JSON.parse(storedPOs));
         // If all POs in localStorage were already received, ensure fresh pending POs are available for testing
         const hasPending = parsedPOs.some((po) => po.status === "PENDING");
         if (!hasPending) {
           const existingIds = new Set(parsedPOs.map((po) => po.id));
+          const existingOrderNums = new Set(parsedPOs.map((po) => po.orderNumber));
           const freshPending = initialPurchaseOrders
             .filter((po) => po.status === "PENDING")
             .map((po) => {
-              if (existingIds.has(po.id)) {
+              if (existingIds.has(po.id) || existingOrderNums.has(po.orderNumber)) {
                 return {
                   ...po,
                   id: "po-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
@@ -121,15 +131,14 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
               }
               return po;
             });
-          setPurchaseOrders([...freshPending, ...parsedPOs]);
-        } else {
-          setPurchaseOrders(parsedPOs);
+          parsedPOs = deduplicateById([...freshPending, ...parsedPOs]);
         }
+        setPurchaseOrders(parsedPOs);
 
-        setProducts(JSON.parse(storedProducts));
-        setSalesOrders(JSON.parse(storedSOs));
-        setStockMovements(storedMovements ? JSON.parse(storedMovements) : initialStockMovements);
-        setGodowns(storedGodowns ? JSON.parse(storedGodowns) : initialGodowns);
+        setProducts(deduplicateById(JSON.parse(storedProducts)));
+        setSalesOrders(deduplicateById(JSON.parse(storedSOs)));
+        setStockMovements(storedMovements ? deduplicateById(JSON.parse(storedMovements)) : initialStockMovements);
+        setGodowns(storedGodowns ? deduplicateById(JSON.parse(storedGodowns)) : initialGodowns);
       } else {
         setProducts(initialProducts);
         setPurchaseOrders(initialPurchaseOrders);

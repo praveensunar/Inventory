@@ -588,9 +588,9 @@ export default function DashboardPage() {
                 </Button>
               </div>
             ) : (
-              pendingOrders.map((po) => (
+              pendingOrders.map((po, index) => (
                 <div
-                  key={po.id}
+                  key={`${po.id}-${index}`}
                   className="rounded-xl border border-border bg-card/60 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
                 >
                   <div>

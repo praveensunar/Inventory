@@ -427,12 +427,12 @@ export default function PurchasesPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((po) => {
+                  filteredOrders.map((po, index) => {
                     const isExpanded = expandedPoId === po.id;
                     const isPending = po.status === "PENDING";
 
                     return (
-                      <React.Fragment key={po.id}>
+                      <React.Fragment key={`${po.id}-${index}`}>
                         <tr className="hover:bg-muted/30 transition-colors">
                           <td className="py-3.5 px-4 font-mono font-semibold text-primary">
                             <button
