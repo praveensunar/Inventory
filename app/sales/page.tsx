@@ -19,6 +19,7 @@ import {
   Building,
   Mail,
   PackageCheck,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -527,10 +528,10 @@ export default function SalesPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setViewInvoice(so)}
-                                className="h-7 px-2 text-[11px] font-semibold gap-1 text-primary hover:bg-primary/10"
+                                className="h-7 px-2.5 text-[11px] font-semibold gap-1 text-primary hover:bg-primary/10"
                               >
                                 <Printer className="h-3 w-3" />
-                                View
+                                <span>View Invoice</span>
                               </Button>
                             </div>
                           </td>
@@ -762,13 +763,16 @@ export default function SalesPage() {
                     </div>
                     <div className="col-span-1 text-right">
                       {orderItems.length > 1 && (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleRemoveLineItem(index)}
-                          className="text-muted-foreground hover:text-red-500 font-bold p-1"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                          title="Remove line item"
                         >
-                          ✕
-                        </button>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       )}
                     </div>
                   </div>

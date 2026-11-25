@@ -27,16 +27,18 @@ export function ThemeSwitcher() {
 
         {/* Light / Dark Mode Toggle */}
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           onClick={toggleDisplayMode}
-          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer transition-transform active:scale-95"
           title={`Switch to ${displayMode === "light" ? "Dark" : "Light"} Mode`}
+          aria-label={`Switch to ${displayMode === "light" ? "Dark" : "Light"} Mode`}
         >
           {displayMode === "light" ? (
-            <Moon className="h-3.5 w-3.5" />
+            <Moon className="h-4 w-4" />
           ) : (
-            <Sun className="h-3.5 w-3.5 text-amber-400" />
+            <Sun className="h-4 w-4 text-amber-400" />
           )}
         </Button>
       </div>

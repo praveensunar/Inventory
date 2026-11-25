@@ -500,31 +500,33 @@ function StockContent() {
                                 setAdjustQty(p.quantity);
                                 setAdjustReason("");
                               }}
-                              className="h-7 px-2 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                              className="h-7 px-2 text-[11px] font-semibold text-primary hover:bg-primary/10 gap-1"
                               title="Audit physical count"
                             >
-                              <SlidersHorizontal className="h-3 w-3 mr-1" />
-                              Count
+                              <SlidersHorizontal className="h-3 w-3" />
+                              <span>Count</span>
                             </Button>
 
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => setEditItem({ ...p })}
-                              className="h-7 px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                              className="h-7 px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground gap-1"
                               title="Edit item details"
                             >
                               <Edit2 className="h-3 w-3" />
+                              <span>Edit</span>
                             </Button>
 
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => setDeleteConfirmItem(p)}
-                              className="h-7 px-2 text-[11px] font-semibold text-muted-foreground hover:text-red-500"
+                              className="h-7 px-2 text-[11px] font-semibold text-muted-foreground hover:text-red-500 gap-1"
                               title="Delete SKU"
                             >
                               <Trash2 className="h-3 w-3" />
+                              <span>Delete</span>
                             </Button>
                           </div>
                         </td>

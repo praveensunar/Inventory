@@ -19,6 +19,7 @@ import {
   ChevronUp,
   Mail,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -716,13 +717,16 @@ export default function PurchasesPage() {
                   </div>
                   <div className="col-span-1 text-right">
                     {orderItems.length > 1 && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleRemoveLineItem(index)}
-                        className="text-muted-foreground hover:text-red-500 font-bold p-1"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                        title="Remove line item"
                       >
-                        ✕
-                      </button>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     )}
                   </div>
                 </div>

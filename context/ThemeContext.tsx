@@ -27,17 +27,39 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [displayMode, setDisplayMode] = useState<DisplayMode>("light");
   const [mounted, setMounted] = useState(false);
 
+  // Initialize theme and mode on mount
   useEffect(() => {
     try {
-      const savedTheme = localStorage.getItem("sastha_theme") as ColorTheme;
+      const isHtmlDark = document.documentElement.classList.contains("dark");
       const savedMode = localStorage.getItem("sastha_mode") as DisplayMode;
+      const effectiveMode: DisplayMode =
+        savedMode === "dark" || savedMode === "light"
+          ? savedMode
+          : isHtmlDark || window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+
+      setDisplayMode(effectiveMode);
+
+      const savedTheme = localStorage.getItem("sastha_theme") as ColorTheme;
       if (savedTheme && ["sapphire", "emerald", "violet", "amber"].includes(savedTheme)) {
         setColorThemeState(savedTheme);
       }
-      if (savedMode && ["light", "dark"].includes(savedMode)) {
-        setDisplayMode(savedMode);
-      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setDisplayMode("dark");
+
+      // Synchronously apply to root
+      const root = document.documentElement;
+      if (effectiveMode === "dark") {
+        root.classList.add("dark");
+        root.style.colorScheme = "dark";
+      } else {
+        root.classList.remove("dark");
+        root.style.colorScheme = "light";
+      }
+
+      if (savedTheme && savedTheme !== "sapphire") {
+        root.setAttribute("data-theme", savedTheme);
+      } else {
+        root.removeAttribute("data-theme");
       }
     } catch {
       // ignore SSR or storage restrictions
@@ -45,38 +67,39 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const root = document.documentElement;
-
-    // Apply color theme
-    if (colorTheme === "sapphire") {
-      root.removeAttribute("data-theme");
-    } else {
-      root.setAttribute("data-theme", colorTheme);
-    }
-
-    // Apply dark/light class
-    if (displayMode === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-
-    try {
-      localStorage.setItem("sastha_theme", colorTheme);
-      localStorage.setItem("sastha_mode", displayMode);
-    } catch {
-      // ignore
-    }
-  }, [colorTheme, displayMode, mounted]);
+  const toggleDisplayMode = () => {
+    setDisplayMode((prev) => {
+      const nextMode: DisplayMode = prev === "light" ? "dark" : "light";
+      const root = document.documentElement;
+      if (nextMode === "dark") {
+        root.classList.add("dark");
+        root.style.colorScheme = "dark";
+      } else {
+        root.classList.remove("dark");
+        root.style.colorScheme = "light";
+      }
+      try {
+        localStorage.setItem("sastha_mode", nextMode);
+      } catch {
+        // ignore
+      }
+      return nextMode;
+    });
+  };
 
   const setColorTheme = (theme: ColorTheme) => {
     setColorThemeState(theme);
-  };
-
-  const toggleDisplayMode = () => {
-    setDisplayMode((prev) => (prev === "light" ? "dark" : "light"));
+    const root = document.documentElement;
+    if (theme === "sapphire") {
+      root.removeAttribute("data-theme");
+    } else {
+      root.setAttribute("data-theme", theme);
+    }
+    try {
+      localStorage.setItem("sastha_theme", theme);
+    } catch {
+      // ignore
+    }
   };
 
   return (

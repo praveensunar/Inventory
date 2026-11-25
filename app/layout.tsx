@@ -15,8 +15,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
+        {/* Instant Theme Initialization Script (Prevents White Flash and Synchronizes Dark Mode) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedMode = localStorage.getItem('sastha_mode');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var isDark = savedMode === 'dark' || (!savedMode && prefersDark);
+                  var root = document.documentElement;
+                  if (isDark) {
+                    root.classList.add('dark');
+                    root.style.colorScheme = 'dark';
+                  } else {
+                    root.classList.remove('dark');
+                    root.style.colorScheme = 'light';
+                  }
+                  var savedTheme = localStorage.getItem('sastha_theme');
+                  if (savedTheme && savedTheme !== 'sapphire') {
+                    root.setAttribute('data-theme', savedTheme);
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         {/* Automatically unregisters any stale localhost service workers (e.g. Flutter/PWA) */}
         <script
           dangerouslySetInnerHTML={{
@@ -32,7 +58,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
+      <body className="min-h-full bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
         <ThemeProvider>
           <InventoryProvider>
             <AppShell>{children}</AppShell>
