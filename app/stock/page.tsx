@@ -267,9 +267,8 @@ function StockContent() {
 
         <Card
           onClick={() => setSelectedStatus(selectedStatus === "LOW_STOCK" ? "ALL" : "LOW_STOCK")}
-          className={`cursor-pointer transition-all ${
-            selectedStatus === "LOW_STOCK" ? "ring-2 ring-amber-500" : ""
-          } border-border bg-card/60 backdrop-blur`}
+          className={`cursor-pointer transition-all ${selectedStatus === "LOW_STOCK" ? "ring-2 ring-amber-500" : ""
+            } border-border bg-card/60 backdrop-blur`}
         >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
@@ -291,9 +290,8 @@ function StockContent() {
 
         <Card
           onClick={() => setSelectedStatus(selectedStatus === "OUT_OF_STOCK" ? "ALL" : "OUT_OF_STOCK")}
-          className={`cursor-pointer transition-all ${
-            selectedStatus === "OUT_OF_STOCK" ? "ring-2 ring-red-500" : ""
-          } border-border bg-card/60 backdrop-blur`}
+          className={`cursor-pointer transition-all ${selectedStatus === "OUT_OF_STOCK" ? "ring-2 ring-red-500" : ""
+            } border-border bg-card/60 backdrop-blur`}
         >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
@@ -318,11 +316,10 @@ function StockContent() {
       <div className="flex items-center gap-2 border-b border-border pb-3">
         <button
           onClick={() => setActiveTab("inventory")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === "inventory"
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === "inventory"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
+            }`}
         >
           <Package className="h-4 w-4" />
           <span>Active Inventory ({filteredProducts.length})</span>
@@ -330,11 +327,10 @@ function StockContent() {
 
         <button
           onClick={() => setActiveTab("history")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === "history"
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === "history"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
+            }`}
         >
           <History className="h-4 w-4" />
           <span>Stock Movement Ledger ({stockMovements.length})</span>
@@ -455,13 +451,12 @@ function StockContent() {
                           <div className="flex items-center gap-1.5 mt-1">
                             <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
                               <div
-                                className={`h-full rounded-full transition-all ${
-                                  p.status === "OUT_OF_STOCK"
+                                className={`h-full rounded-full transition-all ${p.status === "OUT_OF_STOCK"
                                     ? "bg-red-500 w-0"
                                     : p.status === "LOW_STOCK"
-                                    ? "bg-amber-500"
-                                    : "bg-emerald-500"
-                                }`}
+                                      ? "bg-amber-500"
+                                      : "bg-emerald-500"
+                                  }`}
                                 style={{ width: `${Math.max(5, pctOfSafety)}%` }}
                               />
                             </div>

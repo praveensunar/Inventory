@@ -36,6 +36,7 @@ export default function PurchasesPage() {
     createPurchaseOrder,
     totalPurchasesAmount,
     pendingPurchasesCount,
+    addSamplePendingPO,
   } = useInventory();
 
   // Active view: Orders vs Suppliers
@@ -217,6 +218,17 @@ export default function PurchasesPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addSamplePendingPO}
+            className="text-xs font-semibold gap-1.5 border-dashed border-primary/50 text-primary hover:bg-primary/5"
+            title="Inject a realistic pending shipment to test receiving"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            + Sample Pending PO
+          </Button>
+
           <Button
             variant="outline"
             size="sm"

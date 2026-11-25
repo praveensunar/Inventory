@@ -178,7 +178,7 @@ export const initialPurchaseOrders: PurchaseOrder[] = [
     totalAmount: 56000,
     status: "PENDING", // Ready for evaluator to click "Receive" to replenish low stock!
     orderDate: "2026-11-21",
-    expectedDate: "2026-11-24",
+    expectedDate: "2026-11-26",
     notes: "Urgent restocking batch for Chennai hub.",
   },
   {
@@ -199,8 +199,50 @@ export const initialPurchaseOrders: PurchaseOrder[] = [
     totalAmount: 16000,
     status: "PENDING", // Ready to restore the OUT_OF_STOCK product to 50 IN_STOCK!
     orderDate: "2026-11-22",
-    expectedDate: "2026-11-25",
+    expectedDate: "2026-11-27",
     notes: "Restock for out-of-stock thermal labels.",
+  },
+  {
+    id: "po-5",
+    orderNumber: "PO-2026-1045",
+    supplier: "ShieldTech Packaging Corp",
+    supplierEmail: "sales@shieldtechpkg.in",
+    items: [
+      {
+        productId: "prod-3",
+        productName: "ESD Anti-Static Shielding Bags (100pk)",
+        sku: "SAS-ESD-03",
+        quantity: 35,
+        unitPrice: 450,
+        subtotal: 15750,
+      },
+    ],
+    totalAmount: 15750,
+    status: "PENDING",
+    orderDate: "2026-11-24",
+    expectedDate: "2026-11-28",
+    notes: "Replenishment consignment dispatched from Pune warehouse.",
+  },
+  {
+    id: "po-6",
+    orderNumber: "PO-2026-1046",
+    supplier: "Nova Micro Devices",
+    supplierEmail: "procurement@novamicro.com",
+    items: [
+      {
+        productId: "prod-5",
+        productName: "IoT Temperature & Humidity Sensor",
+        sku: "SAS-SEN-05",
+        quantity: 50,
+        unitPrice: 1200,
+        subtotal: 60000,
+      },
+    ],
+    totalAmount: 60000,
+    status: "PENDING",
+    orderDate: "2026-11-24",
+    expectedDate: "2026-11-29",
+    notes: "Next-gen calibrated sensors for Bangalore smart cold storage.",
   },
   {
     id: "po-3",

@@ -22,6 +22,7 @@ import {
   Layers,
   Zap,
   Palette,
+  Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -56,6 +57,7 @@ export default function DashboardPage() {
     receivePurchaseOrder,
     createSalesOrder,
     resetToSampleData,
+    addSamplePendingPO,
   } = useInventory();
 
   const { colorTheme, setColorTheme } = useTheme();
@@ -69,7 +71,7 @@ export default function DashboardPage() {
 
   // Pending POs ready to be received
   const pendingOrders = useMemo(() => {
-    return purchaseOrders.filter((po) => po.status === "PENDING").slice(0, 3);
+    return purchaseOrders.filter((po) => po.status === "PENDING").slice(0, 4);
   }, [purchaseOrders]);
 
   // Recent Activity Feed
@@ -111,11 +113,13 @@ export default function DashboardPage() {
     }
   }, [colorTheme]);
 
-  // Quick Simulation Action 1: Restock the pending PO
+  // Quick Simulation Action 1: Restock the pending PO (or generate one if none pending)
   const handleSimulateRestock = () => {
     const pendingPO = purchaseOrders.find((po) => po.status === "PENDING");
     if (pendingPO) {
       receivePurchaseOrder(pendingPO.id);
+    } else {
+      addSamplePendingPO();
     }
   };
 
@@ -212,12 +216,17 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={handleSimulateRestock}
-              disabled={pendingPurchasesCount === 0}
               className="text-xs font-semibold gap-1.5 bg-background shadow-xs hover:border-emerald-500"
-              title="Receives the first pending PO, increments stock, and triggers celebration"
+              title={
+                pendingPurchasesCount > 0
+                  ? "Receives the pending PO, increments stock, and triggers celebration"
+                  : "Click to generate a sample pending PO ready for receiving"
+              }
             >
               <PackageCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Simulate PO Restock</span>
+              <span>
+                {pendingPurchasesCount > 0 ? "Simulate PO Restock" : "+ Add Pending PO"}
+              </span>
             </Button>
 
             <Button
@@ -539,18 +548,44 @@ export default function DashboardPage() {
                 Suppliers awaiting receipt. Click to accept stock into inventory.
               </CardDescription>
             </div>
-            <Link href="/purchases">
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-primary gap-1">
-                View All
-                <ExternalLink className="h-3 w-3" />
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addSamplePendingPO}
+                className="h-7 text-xs font-semibold gap-1 border-dashed text-primary hover:bg-primary/5"
+                title="Inject a realistic pending shipment to test receiving"
+              >
+                <Plus className="h-3 w-3" />
+                Add Pending PO
               </Button>
-            </Link>
+              <Link href="/purchases">
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-primary gap-1">
+                  View All
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="p-4 sm:p-5 space-y-3">
             {pendingOrders.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center">
+              <div className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2.5">
                 <ShieldCheck className="h-8 w-8 text-emerald-500 mb-1" />
-                All purchase orders have been received. Zero pending shipments.
+                <span className="font-semibold text-foreground">
+                  All purchase orders have been received. Zero pending shipments.
+                </span>
+                <p className="text-[11px] text-muted-foreground max-w-xs text-center">
+                  Want to test the connected inventory workflow again? Generate a pending inbound shipment with 1 click.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={addSamplePendingPO}
+                  className="mt-1 text-xs font-semibold gap-1.5 shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Sample Pending Shipment
+                </Button>
               </div>
             ) : (
               pendingOrders.map((po) => (

@@ -54,6 +54,7 @@ interface InventoryContextType {
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   addGodown: (godown: Omit<Godown, "id">) => Godown;
+  addSamplePendingPO: () => void;
   resetToSampleData: () => void;
 
   // Notifications
@@ -103,8 +104,29 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       const storedGodowns = localStorage.getItem("sastha_godowns");
 
       if (storedProducts && storedPOs && storedSOs) {
+        const parsedPOs: PurchaseOrder[] = JSON.parse(storedPOs);
+        // If all POs in localStorage were already received, ensure fresh pending POs are available for testing
+        const hasPending = parsedPOs.some((po) => po.status === "PENDING");
+        if (!hasPending) {
+          const existingIds = new Set(parsedPOs.map((po) => po.id));
+          const freshPending = initialPurchaseOrders
+            .filter((po) => po.status === "PENDING")
+            .map((po) => {
+              if (existingIds.has(po.id)) {
+                return {
+                  ...po,
+                  id: "po-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+                  orderNumber: "PO-2026-" + Math.floor(1060 + Math.random() * 200),
+                };
+              }
+              return po;
+            });
+          setPurchaseOrders([...freshPending, ...parsedPOs]);
+        } else {
+          setPurchaseOrders(parsedPOs);
+        }
+
         setProducts(JSON.parse(storedProducts));
-        setPurchaseOrders(JSON.parse(storedPOs));
         setSalesOrders(JSON.parse(storedSOs));
         setStockMovements(storedMovements ? JSON.parse(storedMovements) : initialStockMovements);
         setGodowns(storedGodowns ? JSON.parse(storedGodowns) : initialGodowns);
@@ -571,6 +593,56 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     return newGodown;
   };
 
+  // Quick Action to inject a sample pending PO immediately
+  const addSamplePendingPO = () => {
+    const candidates = products.filter((p) => p.status === "LOW_STOCK" || p.status === "OUT_OF_STOCK");
+    const targetProduct = candidates.length > 0 
+      ? candidates[Math.floor(Math.random() * candidates.length)] 
+      : (products[0] || initialProducts[0]);
+    if (!targetProduct) return;
+
+    const suppliersList = [
+      { name: "Apex Automation Components Ltd", email: "orders@apexautomation.in" },
+      { name: "Global PackTech Supplies", email: "sales@packtechglobal.com" },
+      { name: "ShieldTech Packaging Corp", email: "sales@shieldtechpkg.in" },
+      { name: "Nova Micro Devices", email: "procurement@novamicro.com" },
+      { name: "OmniCable Industries", email: "sales@omnicables.in" },
+    ];
+    const supplierObj = suppliersList[Math.floor(Math.random() * suppliersList.length)];
+    const id = "po-" + Date.now();
+    const poNum = "PO-2026-" + Math.floor(1050 + Math.random() * 500);
+    const qty = targetProduct.status === "OUT_OF_STOCK" ? 50 : 25;
+    const newPO: PurchaseOrder = {
+      id,
+      orderNumber: poNum,
+      supplier: supplierObj.name,
+      supplierEmail: supplierObj.email,
+      items: [
+        {
+          productId: targetProduct.id,
+          productName: targetProduct.name,
+          sku: targetProduct.sku,
+          quantity: qty,
+          unitPrice: targetProduct.costPrice,
+          subtotal: targetProduct.costPrice * qty,
+        },
+      ],
+      totalAmount: targetProduct.costPrice * qty,
+      status: "PENDING",
+      orderDate: new Date().toISOString().split("T")[0],
+      expectedDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+      notes: `Restocking consignment for ${targetProduct.name} (${targetProduct.sku})`,
+    };
+
+    setPurchaseOrders((prev) => [newPO, ...prev]);
+
+    addToast({
+      type: "info",
+      title: "Pending Purchase Order Created",
+      message: `${poNum} from ${supplierObj.name} added. Click 'Receive' to test stock increment!`,
+    });
+  };
+
   // Reset to initial mock dataset
   const resetToSampleData = () => {
     setProducts(initialProducts);
@@ -590,7 +662,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     addToast({
       type: "info",
       title: "Sample Data Restored",
-      message: "Inventory reset to baseline trial scenario.",
+      message: "Inventory reset to baseline trial scenario with pending shipments.",
     });
   };
 
@@ -638,6 +710,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         updateProduct,
         deleteProduct,
         addGodown,
+        addSamplePendingPO,
         resetToSampleData,
         toasts,
         removeToast,

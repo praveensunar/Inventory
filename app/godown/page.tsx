@@ -119,8 +119,8 @@ export default function GodownPage() {
           const utilizationPct = Math.min(100, Math.round((totalUnitsInGodown / (g.capacity / 10)) * 100));
 
           return (
-            <Card key={g.id} className="border-border flex flex-col justify-between hover:border-primary/40 transition-all">
-              <CardHeader className="p-5 border-b border-border/70 pb-4">
+            <Card key={g.id} className="border-border flex flex-col hover:border-primary/40 transition-all">
+              <CardHeader className="p-5 border-b border-border/70 pb-4 shrink-0">
                 <div className="flex items-center justify-between">
                   <Badge variant="default" className="font-mono text-[10px]">
                     {g.code}
@@ -137,7 +137,7 @@ export default function GodownPage() {
                 </div>
               </CardHeader>
 
-              <CardContent className="p-5 space-y-4">
+              <CardContent className="p-5 space-y-4 flex-1 flex flex-col">
                 {/* Capacity Utilization Progress Bar */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
